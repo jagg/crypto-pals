@@ -31,37 +31,30 @@
     0))
 
 
-(defun merge-3 (bytes)
-  (when bytes
-    (logior (ash (try-aref bytes 0) 16)
-            (ash (try-aref bytes 1) 8)
-            (ash (try-aref bytes 2) 0))))
-
 (defun get-6 (byte pos)
   (when byte
     (ldb (byte 6 pos) byte)))
 
-(defun val-or-padding (byte n)
-  (if (> n 0) #\=
-      (char *b64-lookup* byte)))
+(defun combine-3 (bytes start end)
+  "Combine a sequence of three bytes into a single integer"
+  (let ((seq (subseq bytes start (min (length bytes) end))))
+    (values 
+     (when seq 
+       (logior (ash (try-aref seq 0) 16)
+               (ash (try-aref seq 1) 8)
+               (ash (try-aref seq 2) 0)))
+     (+ 1 (- (min (length bytes) end) start)))))
 
-;; https://b64encode.com/blog/base64-algorithm/
 (defun b64-encode (bytes)
   (with-output-to-string (str)
     (do* ((start 0 (+ start 3))
-          (end 3 (+ end 3))
-          (padding (rem (length bytes) 3))
-          (seq (subseq bytes start end) (when (< start (length bytes)) (subseq bytes start (min (length bytes) end))))
-          (byte (merge-3 seq) (merge-3 seq))
-          (b1 (get-6 byte 18) (get-6 byte 18))
-          (b2 (get-6 byte 12) (get-6 byte 12))
-          (b3 (get-6 byte 6) (get-6 byte 6))
-          (b4 (get-6 byte 0) (get-6 byte 0)))
+          (end 3 (+ end 3)))
          ((>= start (length bytes)) str)
-      (princ (val-or-padding b1 (- padding 4)) str)
-      (princ (val-or-padding b2 (- padding 3)) str)
-      (princ (val-or-padding b3 (- padding 2)) str)
-      (princ (val-or-padding b4 (- padding 1)) str))))
+      (multiple-value-bind (combined byte-count) (combine-3 bytes start end)
+        (dotimes (n byte-count)
+          (princ (char *b64-lookup* (get-6 combined (- 18 (* n 6))))))
+        (dotimes (n (- 4 byte-count))
+          (princ #\=))))))
 
 (b64-encode (str-to-bytes "Base64i"))
 
