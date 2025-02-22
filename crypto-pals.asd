@@ -5,7 +5,8 @@
   :depends-on (:ironclad :dialectic)
   :components ((:module "src"
                 :components
-                ((:file "main"))))
+                ((:file "main" :depends-on ("encodings"))
+                 (:file "encodings"))))
   :description ""
   :in-order-to ((test-op (test-op "crypto-pals/tests"))))
 

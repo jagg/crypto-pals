@@ -1,6 +1,9 @@
 (defpackage encodings
   (:use :cl :dialectic)
-  (:local-nicknames (:dia :dialectic)))
+  (:local-nicknames (:dia :dialectic))
+  (:export #:str-to-bytes #:bytes-to-str
+           #:hex-to-bytes #:bytes-to-hex
+           #:b64-to-bytes #:bytes-to-b64))
 (in-package :encodings)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -81,9 +84,9 @@
          ((>= start (length bytes)) str)
       (multiple-value-bind (combined byte-count) (combine-3 bytes start end)
         (dotimes (n byte-count)
-          (princ (char *b64-lookup* (get-n-bits 6 combined (- 18 (* n 6))))))
+          (princ (char *b64-lookup* (get-n-bits 6 combined (- 18 (* n 6)))) str))
         (dotimes (n (- 4 byte-count))
-          (princ #\=))))))
+          (princ #\= str))))))
 
 (defun merge-6bit-group (bytes start)
   (values 
@@ -108,4 +111,12 @@
             (when (not (zerop char)) (setf (aref out (incf pos)) char))))))))
 
 (dia:deftest b64-encoding ()
-  (check (equal "test" (bytes-to-b64 (str-to-bytes "Base64")))))
+  (check
+    (equal "QmFzZTY0" (bytes-to-b64 (str-to-bytes "Base64")))
+    (equal "QmFzZTY0aQ==" (bytes-to-b64 (str-to-bytes "Base64i")))
+    (equal "QmFzZTY0aWk=" (bytes-to-b64 (str-to-bytes "Base64ii")))))
+
+(dia:deftest cryptopals-1-1 ()
+  (check
+    (equal "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"
+           (bytes-to-b64 (hex-to-bytes "49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d")))))
