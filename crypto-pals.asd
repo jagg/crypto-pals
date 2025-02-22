@@ -2,7 +2,7 @@
   :version "0.1.0"
   :author ""
   :license ""
-  :depends-on (:ironclad)
+  :depends-on (:ironclad :dialectic)
   :components ((:module "src"
                 :components
                 ((:file "main"))))

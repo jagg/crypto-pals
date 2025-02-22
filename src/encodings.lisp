@@ -1,10 +1,11 @@
-(defpackage crypto-pals
-  (:use :cl :ironclad)
-  (:local-nicknames (:ic :ironclad)))
-(in-package :crypto-pals)
+(defpackage encodings
+  (:use :cl :dialectic)
+  (:local-nicknames (:dia :dialectic)))
+(in-package :encodings)
 
-(defun byte-n (bytes n)
-  (aref bytes n))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ASCII
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun str-to-bytes (str)
   (map 'vector (lambda (c) (char-code c)) str))
@@ -12,21 +13,34 @@
 (defun bytes-to-str (bytes)
   (map 'string (lambda (c) (code-char c)) bytes))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Hex 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun h2b (byte)
+  "Convert 2 hex digits into a byte"
+  (parse-integer byte :radix 16))
+
 (defun bytes-to-hex (bytes)
   (with-output-to-string (s)
     (map nil (lambda (b) (format s "~2,'0X" b)) bytes)))
 
+(defun hex-to-bytes (hex-str)
+  (let ((len (length hex-str)))
+    (if (oddp len) (error "Hex string is malformed"))
+    (let ((array (make-array (floor len 2) :element-type 'unsigned-byte :fill-pointer 0 :adjustable t)))
+      (do* ((start 0 (+ start 2))
+            (end 2 (+ end 2))
+            (digit (subseq hex-str 0 2) (when (<= end len) (subseq hex-str start end))))
+           ((> end len) array)
+        (vector-push-extend (h2b digit) array)))))
 
-(defun b2h (bytes)
-  (ic:byte-array-to-hex-string bytes))
 
-(defun h2b (hex-str)
-  (ic:hex-string-to-byte-array hex-str))
-
-
-
-;; My Base64 implementation
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Base64 
 ;; Compare with: https://github.com/massung/base64/blob/master/base64.lisp
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defvar *b64-lookup* "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
 (defvar *b64-reverse-lookup*
@@ -44,7 +58,6 @@
       (if (aref seq n) (aref seq n) 0)
       0))
 
-
 (defun get-n-bits (n byte pos)
   "Get n bits from byte, starting at pos"
   (when byte
@@ -60,7 +73,7 @@
                (ash (try-aref seq 2) 0)))
      (+ 1 (- (min (length bytes) end) start)))))
 
-(defun b64-encode (bytes)
+(defun bytes-to-b64 (bytes)
   "Base64 Encode an array of bytes into a string"
   (with-output-to-string (str)
     (do* ((start 0 (+ start 3))
@@ -81,7 +94,7 @@
    (- (min (+ 3 start) (length bytes)) start)))
 
 
-(defun b64-decode (str)
+(defun b64-to-bytes (str)
   "Base64 decode a base64 string into an array of bytes"
   (let ((out (make-array (/ (* (length str) 6) 8)))
         (pos -1)
@@ -94,10 +107,5 @@
           (let ((char (get-n-bits 8 combined (- 16 (* n 8)))))
             (when (not (zerop char)) (setf (aref out (incf pos)) char))))))))
 
-
-(b64-encode (str-to-bytes "Base64i"))
-
-(bytes-to-str (b64-decode "QmFz"))
-
-(b64-encode (h2b "49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"))
-(bytes-to-str (b64-decode (str-to-bytes "QmFz")))
+(dia:deftest b64-encoding ()
+  (check (equal "test" (bytes-to-b64 (str-to-bytes "Base64")))))
